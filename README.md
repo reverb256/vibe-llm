@@ -40,6 +40,25 @@ This project provides a local AI inference server with the following features:
 - Implement RAG pipeline
 - Add authentication and rate limiting
 
+## Docker Usage
+
+### Build and Run with Docker Compose
+
+1. Build the image and start the service (with GPU support):
+   ```bash
+   docker compose up --build
+   ```
+   The API will be available at http://localhost:8000
+
+2. To stop the service:
+   ```bash
+   docker compose down
+   ```
+
+> **Note:**
+> - Requires Docker with NVIDIA Container Toolkit for GPU access.
+> - Your `.env` file is automatically used for API keys.
+
 ---
 
 This project is in active development. Contributions welcome!
