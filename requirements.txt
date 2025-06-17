@@ -1,0 +1,9 @@
+fastapi
+uvicorn
+python-dotenv
+vllm
+huggingface_hub
+iointel
+openai
+faiss-cpu
+chromadb
