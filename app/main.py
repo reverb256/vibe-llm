@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, Query
 from fastapi.responses import JSONResponse
 import os
 from dotenv import load_dotenv
@@ -35,3 +35,20 @@ async def chat_completions(request: Request):
     hf = HuggingFaceBackend(model)
     response = hf.chat(prompt)
     return JSONResponse({"choices": [{"message": {"role": "assistant", "content": response}}]})
+
+@app.get("/v1/models")
+async def list_models(source: str = Query("all", description="Source: all, hf, io")):
+    models = []
+    if source in ("all", "hf"):
+        from .hf_backend import HuggingFaceBackend
+        models.extend(HuggingFaceBackend.list_text_generation_models())
+    if source in ("all", "io"):
+        from .iointel_backend import IOIntelligenceBackend
+        models.extend(IOIntelligenceBackend.list_io_models())
+    return {"models": models}
+
+@app.get("/v1/agents")
+async def list_io_agents():
+    from .iointel_backend import IOIntelligenceBackend
+    agents = IOIntelligenceBackend.list_io_agents()
+    return {"agents": agents}
