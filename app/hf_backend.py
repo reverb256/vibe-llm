@@ -1,6 +1,6 @@
 import os
 import logging
-from huggingface_hub import InferenceClient, list_models, ModelFilter
+from huggingface_hub import InferenceClient, list_models
 
 HUGGINGFACE_TOKEN = os.getenv("HUGGINGFACE_TOKEN")
 
@@ -26,5 +26,5 @@ class HuggingFaceBackend:
     @staticmethod
     def list_text_generation_models(limit=20):
         # List public models that support text-generation
-        models = list_models(filter=ModelFilter(task="text-generation"), limit=limit)
+        models = list_models(task="text-generation", limit=limit)
         return [m.modelId for m in models]
