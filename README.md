@@ -1,64 +1,65 @@
-# vibe-llm: Local AI Inference Server
+# Vibe-LLM: Enterprise-Grade Local AI Inference Server
 
-This project provides a local AI inference server with the following features:
-- **OpenAI-compatible API** (for Ollama, Open WebUI, IDEs, etc.)
-- **vLLM** for fast local inference with GPU (NVIDIA 3090 via CUDA)
-- **HuggingFace Hub** integration for remote models
-- **IO Intelligence** integration for cloud models
-- **RAG (Retrieval-Augmented Generation)** support (using FAISS or ChromaDB)
-- **Network-accessible**: Bind to 0.0.0.0 for LAN access
+## Overview
+Vibe-LLM is a modular, GPU-accelerated AI inference server with OpenAI-compatible endpoints. It supports:
+- Local vLLM backend (GPU inference)
+- HuggingFace (remote, with dynamic task support)
+- IO Intelligence (remote/agent)
+- RAG (Retrieval-Augmented Generation) and Knowledge Graph integration
+- Secure proxying of all external requests via vLLM
+- Auto-discovery and unified registry of all models and agents
+- Smart routing and graceful fallback
+
+## Features
+- **OpenAI-compatible API**: Drop-in replacement for OpenAI endpoints
+- **Unified Model/Agent Registry**: Auto-discovers and merges models/agents from all providers
+- **Smart Routing**: Selects the best model for each request, with fallback
+- **Enterprise Security**: All external calls are proxied and sanitized
+- **RAG & Knowledge Graph**: Integrates with advanced RAG MCP servers and Neo4j for code validation and hallucination detection
+- **Extensible**: Easily add new providers, tasks, or RAG strategies
 
 ## Quick Start
-
-1. Install dependencies:
+1. **Clone the repository**
    ```bash
+   git clone https://github.com/your-org/vibe-llm.git
+   cd vibe-llm
+   ```
+2. **Set up Python environment**
+   ```bash
+   python3.11 -m venv .venv
+   source .venv/bin/activate
+   pip install --upgrade pip
    pip install -r requirements.txt
    ```
-2. Set your API keys in a `.env` file:
-   ```env
-   HUGGINGFACE_TOKEN=your_hf_token
-   IOINTEL_TOKEN=your_iointel_token
-   ```
-3. Run the server:
+3. **Configure environment variables**
+   - Copy `.env.example` to `.env` and fill in your secrets (HuggingFace, IO, RAG, etc.)
+4. **Run the server**
    ```bash
    uvicorn app.main:app --host 0.0.0.0 --port 8000
    ```
+5. **Test endpoints**
+   - `GET /v1/models` — List all available models
+   - `GET /v1/agents` — List all available agents
+   - `POST /v1/chat/completions` — OpenAI-compatible chat
 
-## Features
-- OpenAI-compatible endpoints: `/v1/chat/completions`, etc.
-- Model routing: local (vLLM), HuggingFace, or IO Intelligence
-- RAG pipeline for document-augmented answers
+## RAG & Knowledge Graph Integration
+- Integrate with [mcp-crawl4ai-rag](https://github.com/coleam00/mcp-crawl4ai-rag) for advanced RAG and code validation.
+- See `BEST_PRACTICES.md` for recommended RAG strategies and knowledge graph setup.
 
-## Requirements
-- Python 3.10+
-- CUDA-enabled GPU (for vLLM)
+## Best Practices
+- See [BEST_PRACTICES.md](./BEST_PRACTICES.md) for architecture, security, and collaboration guidelines.
 
-## TODO
-- Implement vLLM backend
-- Implement HuggingFace backend
-- Implement IO Intelligence backend
-- Implement RAG pipeline
-- Add authentication and rate limiting
+## Contributing
+- Fork, branch, and submit PRs for new features or bug fixes.
+- Document all new endpoints, models, and agents.
+- Add/Update tests for all new features.
 
-## Docker Usage
+## License
+MIT License
 
-### Build and Run with Docker Compose
-
-1. Build the image and start the service (with GPU support):
-   ```bash
-   docker compose up --build
-   ```
-   The API will be available at http://localhost:8000
-
-2. To stop the service:
-   ```bash
-   docker compose down
-   ```
-
-> **Note:**
-> - Requires Docker with NVIDIA Container Toolkit for GPU access.
-> - Your `.env` file is automatically used for API keys.
-
----
-
-This project is in active development. Contributions welcome!
+## References
+- [FastAPI](https://fastapi.tiangolo.com/)
+- [vLLM](https://vllm.ai/)
+- [HuggingFace Hub](https://huggingface.co/docs/hub/index)
+- [Crawl4AI RAG MCP](https://github.com/coleam00/mcp-crawl4ai-rag)
+- [Neo4j](https://neo4j.com/)
