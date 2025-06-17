@@ -4,6 +4,7 @@ import os
 from dotenv import load_dotenv
 from .hf_backend import HuggingFaceBackend
 from .iointel_backend import IOIntelligenceBackend
+from .vllm_backend import VLLMBackend
 
 load_dotenv()
 
@@ -20,6 +21,11 @@ async def chat_completions(request: Request):
     model = body.get("model", "gpt2")
     messages = body.get("messages", [])
     prompt = messages[-1]["content"] if messages else ""
+    # Routing logic: use vLLM for local models (e.g., 'local-' prefix)
+    if model.startswith("local-"):
+        vllm_backend = VLLMBackend(model.replace("local-", ""))
+        response = vllm_backend.chat(prompt)
+        return JSONResponse({"choices": [{"message": {"role": "assistant", "content": response}}]})
     # Routing logic: use IO Intelligence if model name starts with 'meta-llama/' or other IOIntel models
     if model.startswith("meta-llama/") or model.startswith("deepseek-ai/") or model.startswith("Qwen/"):
         io_backend = IOIntelligenceBackend(model)
