@@ -43,3 +43,13 @@ async def list_models():
 @app.get("/v1/agents")
 async def list_io_agents():
     return {"agents": ioregistry.agents}
+
+@app.get("/openai/verify")
+@app.post("/openai/verify")
+def openai_verify():
+    return JSONResponse({"success": True})
+
+@app.get("/openai/models")
+def openai_models():
+    # Return models in OpenAI format for Open WebUI compatibility
+    return {"data": [{"id": m["id"], "object": "model"} for m in ioregistry.models]}
