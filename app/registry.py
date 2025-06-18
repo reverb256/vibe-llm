@@ -20,8 +20,18 @@ class ModelRegistry:
         self.agents = self._discover_io_agents()
 
     def _discover_hf_models(self) -> List[Dict[str, Any]]:
-        # TODO: Call HuggingFace backend, get models and metadata
-        return []
+        from .hf_backend import HuggingFaceBackend
+        try:
+            model_ids = HuggingFaceBackend.list_text_generation_models(limit=20)
+            return [{
+                "id": f"hf:{m}",
+                "provider": "hf",
+                "tasks": ["chat", "text-generation"],
+                "health": "unknown"
+            } for m in model_ids]
+        except Exception as e:
+            logging.warning(f"Could not discover HuggingFace models: {e}")
+            return []
 
     def _discover_io_models(self):
         model_ids = IOIntelligenceBackend.list_io_models()
@@ -38,7 +48,7 @@ class ModelRegistry:
         # Add provider field
         return [{**a, "provider": "io"} for a in agents if isinstance(a, dict) and "id" in a]
 
-    def get_models(self, task: str = None, provider: str = None) -> List[Dict[str, Any]]:
+    def get_models(self, task: str = '', provider: str = '') -> List[Dict[str, Any]]:
         # Filter by task/provider if specified
         results = self.models
         if task:
@@ -47,7 +57,7 @@ class ModelRegistry:
             results = [m for m in results if m.get('provider') == provider]
         return results
 
-    def get_agents(self, provider: str = None) -> List[Dict[str, Any]]:
+    def get_agents(self, provider: str = '') -> List[Dict[str, Any]]:
         results = self.agents
         if provider:
             results = [a for a in results if a.get('provider') == provider]

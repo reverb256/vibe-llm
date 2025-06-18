@@ -1,22 +1,16 @@
-# Vibe-LLM: Enterprise-Grade Local AI Inference Server
+# Vibe-LLM: AI Code Router
 
 ## Overview
-Vibe-LLM is a modular, GPU-accelerated AI inference server with OpenAI-compatible endpoints. It supports:
-- Local vLLM backend (GPU inference)
-- HuggingFace (remote, with dynamic task support)
-- IO Intelligence (remote/agent)
-- RAG (Retrieval-Augmented Generation) and Knowledge Graph integration
-- Secure proxying of all external requests via vLLM
-- Auto-discovery and unified registry of all models and agents
-- Smart routing and graceful fallback
+Vibe-LLM is a modular, GPU-accelerated AI inference server and code router. It dynamically selects the best LLM or tool for coding tasks, enhances prompts with RAG (Retrieval Augmented Generation), and integrates with IDEs like VS Code (Continue.dev) or VOID IDE.
 
-## Features
-- **OpenAI-compatible API**: Drop-in replacement for OpenAI endpoints
-- **Unified Model/Agent Registry**: Auto-discovers and merges models/agents from all providers
-- **Smart Routing**: Selects the best model for each request, with fallback
-- **Enterprise Security**: All external calls are proxied and sanitized
-- **RAG & Knowledge Graph**: Integrates with advanced RAG MCP servers and Neo4j for code validation and hallucination detection
-- **Extensible**: Easily add new providers, tasks, or RAG strategies
+## Features (MVP)
+- **Smart Model Routing**: Dynamically chooses the best LLM based on task type, latency, accuracy, and cost
+- **Task Classifier**: Lightweight classifier to identify code generation, debugging, refactoring, etc.
+- **RAG Integration**: Uses ChromaDB or Faiss for local vector search, plus optional web search
+- **Tool Coordination (MCP)**: Integrates with Context7 and custom tools for web search, shell, and file access
+- **OpenAI-Compatible API**: Drop-in replacement for OpenAI endpoints
+- **IDE Integration**: Works with Continue.dev and VOID IDE out of the box
+- **FOSS & Local First**: Supports open source models (Ollama, vLLM), local deployment, and easy customization
 
 ## Quick Start
 1. **Clone the repository**
@@ -31,28 +25,68 @@ Vibe-LLM is a modular, GPU-accelerated AI inference server with OpenAI-compatibl
    pip install --upgrade pip
    pip install -r requirements.txt
    ```
-3. **Configure environment variables**
-   - Copy `.env.example` to `.env` and fill in your secrets (HuggingFace, IO, RAG, etc.)
+3. **Configure environment and models**
+   - Copy `.env.example` to `.env` and fill in your secrets (HuggingFace, IO, etc.)
+   - Edit `config.yaml` to define your models, RAG, and tools
 4. **Run the server**
    ```bash
    uvicorn app.main:app --host 0.0.0.0 --port 8000
    ```
 5. **Test endpoints**
+   - `POST /api/generate` — Smart router endpoint (recommended)
+   - `POST /v1/chat/completions` — OpenAI-compatible chat
    - `GET /v1/models` — List all available models
    - `GET /v1/agents` — List all available agents
-   - `POST /v1/chat/completions` — OpenAI-compatible chat
 
-## RAG & Knowledge Graph Integration
-- Integrate with [mcp-crawl4ai-rag](https://github.com/coleam00/mcp-crawl4ai-rag) for advanced RAG and code validation.
-- See `BEST_PRACTICES.md` for recommended RAG strategies and knowledge graph setup.
+## API Reference
+### `/api/generate` (recommended)
+- **POST** JSON: `{ "prompt": "...", "tags": ["code"], "rag": true }`
+- Returns: `{ "model": "...", "task": "...", "response": "..." }`
 
-## Best Practices
-- See [BEST_PRACTICES.md](./BEST_PRACTICES.md) for architecture, security, and collaboration guidelines.
+### OpenAI-Compatible Endpoints
+- `POST /v1/chat/completions`
+- `POST /v1/completions`
+
+## RAG & Tool Coordination
+- **RAG endpoints**: `/api/rag/add`, `/api/rag/query` for document ingestion and retrieval
+- **Tool endpoints**: `/api/tool/shell`, `/api/tool/read_file`, `/api/tool/write_file` for MCP/Context7 integration
+- **CLI tool**: `vibe-cli.py` for standalone prompt testing
+
+## Example Usage
+### Add docs to RAG
+```bash
+curl -X POST http://localhost:8000/api/rag/add -H 'Content-Type: application/json' -d '{"docs": ["FastAPI is a Python web framework.", "Paris is the capital of France."]}'
+```
+### Query RAG
+```bash
+curl -X POST http://localhost:8000/api/rag/query -H 'Content-Type: application/json' -d '{"query": "What is the capital of France?"}'
+```
+### Run shell command
+```bash
+curl -X POST http://localhost:8000/api/tool/shell -H 'Content-Type: application/json' -d '{"command": "ls -l"}'
+```
+### CLI tool
+```bash
+python vibe-cli.py "Generate a Python function to add two numbers."
+```
+
+## Configuration
+- **.env**: Secrets for HuggingFace, IO, etc.
+- **config.yaml**: Models, RAG, and tool settings
+
+## IDE Integration
+- See [Continue.dev](https://continue.dev/) or VOID IDE docs
+- Point your IDE to `http://localhost:8000/api/generate` for smart routing
+
+## Extensibility
+- Add new models/tools in `config.yaml`
+- Extend backends in `app/`
+- Plugin system coming soon
 
 ## Contributing
-- Fork, branch, and submit PRs for new features or bug fixes.
-- Document all new endpoints, models, and agents.
-- Add/Update tests for all new features.
+- Fork, branch, and submit PRs for new features or bug fixes
+- Document all new endpoints, models, and agents
+- Add/Update tests for all new features
 
 ## License
 MIT License
@@ -61,5 +95,5 @@ MIT License
 - [FastAPI](https://fastapi.tiangolo.com/)
 - [vLLM](https://vllm.ai/)
 - [HuggingFace Hub](https://huggingface.co/docs/hub/index)
-- [Crawl4AI RAG MCP](https://github.com/coleam00/mcp-crawl4ai-rag)
-- [Neo4j](https://neo4j.com/)
+- [ChromaDB](https://www.trychroma.com/)
+- [Continue.dev](https://continue.dev/)

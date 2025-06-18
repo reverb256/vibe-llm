@@ -1,0 +1,28 @@
+# Example config for model selection, RAG, and tool integration
+models:
+  - id: vllm:llama-3
+    provider: vllm
+    tags: [code, fast, local]
+    tasks: [code-generation, chat]
+  - id: hf:bigcode/starcoder2
+    provider: hf
+    tags: [code, open, remote]
+    tasks: [code-generation, chat]
+  - id: io:io-gpt-4
+    provider: io
+    tags: [chat, agent, remote]
+    tasks: [chat, agent]
+
+rag:
+  enabled: true
+  provider: chromadb
+  path: ./rag_db
+  web_search: true
+  web_search_provider: serper
+
+mcp:
+  enabled: true
+  tools:
+    - context7
+    - shell
+    - file
