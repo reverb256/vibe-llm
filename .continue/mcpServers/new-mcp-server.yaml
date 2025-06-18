@@ -1,10 +1,10 @@
-name: New MCP server
+name: Context7 Documentation MCP Server
 version: 0.0.1
 schema: v1
 mcpServers:
-  - name: New MCP server
+  - name: Context7 Documentation MCP Server
     command: npx
     args:
       - -y
-      - <your-mcp-server>
+      - http://localhost:8080/mcp
     env: {}
