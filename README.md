@@ -52,6 +52,15 @@ Vibe-LLM is a modular, GPU-accelerated AI inference server and code router. It d
 - **Tool endpoints**: `/api/tool/shell`, `/api/tool/read_file`, `/api/tool/write_file` for MCP/Context7 integration
 - **CLI tool**: `vibe-cli.py` for standalone prompt testing
 
+## MCP Tool Auto-Discovery & Usage Tracking
+- **Tool registry**: Auto-discovers all tools in `app/tools/` and exposes `/api/tools` and `/api/tools/run` endpoints
+- **Usage tracker**: Tracks per-model usage and rate limits, rotates IO Intelligence models if a limit is hit
+
+## Agent Orchestration & Telemetry
+- **Orchestrator**: `/api/orchestrate` endpoint for multi-step agent workflows (plan, retry, tool chaining)
+- **Telemetry**: `/api/telemetry` endpoint for basic metrics and event logging
+- **Input sanitization**: All tool/agent inputs are sanitized for security
+
 ## Example Usage
 ### Add docs to RAG
 ```bash
@@ -68,6 +77,22 @@ curl -X POST http://localhost:8000/api/tool/shell -H 'Content-Type: application/
 ### CLI tool
 ```bash
 python vibe-cli.py "Generate a Python function to add two numbers."
+```
+### List tools
+```bash
+curl http://localhost:8000/api/tools
+```
+### Run a tool
+```bash
+curl -X POST http://localhost:8000/api/tools/run -H 'Content-Type: application/json' -d '{"name": "example_tool", "args": ["foo"], "kwargs": {}}'
+```
+### Orchestrate a multi-step task
+```bash
+curl -X POST http://localhost:8000/api/orchestrate -H 'Content-Type: application/json' -d '{"task": "demo", "steps": [{"tool": "example_tool", "args": ["foo"]}]}'
+```
+### Get telemetry
+```bash
+curl http://localhost:8000/api/telemetry
 ```
 
 ## Configuration

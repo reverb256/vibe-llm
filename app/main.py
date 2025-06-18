@@ -11,6 +11,11 @@ from .task_classifier import TaskClassifier
 from .model_selector import ModelSelector
 from .chroma_rag import ChromaRAG
 from .tool_coordinator import ToolCoordinator
+from .tool_registry import ToolRegistry
+from .usage_tracker import UsageTracker
+from .orchestrator import Orchestrator
+from .telemetry import Telemetry
+from .sanitize import sanitize_input
 import yaml
 
 load_dotenv()
@@ -21,6 +26,10 @@ app = FastAPI(title="vibe-llm: Local AI Inference Server")
 ioregistry = ModelRegistry()
 ioregistry.models = ioregistry._discover_io_models()
 ioregistry.agents = ioregistry._discover_io_agents()
+
+# Initialize usage tracker
+usage_tracker = UsageTracker()
+telemetry = Telemetry()
 
 @app.get("/")
 def root():
@@ -34,11 +43,20 @@ BACKEND_MAP = {
     'rag': RAGBackend,
 }
 
-def get_backend(model: str, provider: str = None, rag_corpus=None):
+def get_backend(model: str, provider: str = None, rag_corpus=None, allow_rotation=True):
     """
     Select backend based on model/provider naming convention or explicit provider.
+    If usage limit is hit, rotate to next available model for the task.
     """
     if provider == 'io' or (model and model.startswith('io:')):
+        if usage_tracker.is_limited(model):
+            # Rotate to next available IO model
+            from .model_selector import ModelSelector
+            selector = ModelSelector()
+            next_model = selector.select('chat', tags=['io'])
+            if next_model != model:
+                model = next_model
+        usage_tracker.increment(model)
         return IOIntelligenceBackend(model.replace('io:', ''))
     elif provider == 'vllm' or (model and model.startswith('vllm:')):
         return VLLMBackend(model.replace('vllm:', ''))
@@ -199,3 +217,42 @@ async def tool_write_file(request: Request):
     tools = ToolCoordinator()
     result = tools.write_file(path, content)
     return result
+
+@app.get("/api/tools")
+async def list_tools():
+    registry = ToolRegistry()
+    return {"tools": registry.list_tools()}
+
+@app.post("/api/tools/run")
+async def run_tool(request: Request):
+    body = await request.json()
+    name = body.get("name")
+    args = body.get("args", [])
+    kwargs = body.get("kwargs", {})
+    registry = ToolRegistry()
+    result = registry.run_tool(name, *args, **kwargs)
+    return result
+
+@app.post("/api/orchestrate")
+async def api_orchestrate(request: Request):
+    body = await request.json()
+    task = body.get("task")
+    steps = body.get("steps", [])
+    if not task or not steps:
+        return JSONResponse({"error": "task and steps must be specified"}, status_code=400)
+    from .model_selector import ModelSelector
+    from .tool_registry import ToolRegistry
+    orchestrator = Orchestrator(ModelSelector(), ToolRegistry())
+    # Sanitize all step args/kwargs
+    for step in steps:
+        if 'args' in step:
+            step['args'] = [sanitize_input(str(a)) for a in step['args']]
+        if 'kwargs' in step:
+            step['kwargs'] = {k: sanitize_input(str(v)) for k, v in step['kwargs'].items()}
+    results = orchestrator.orchestrate(task, steps)
+    telemetry.log('orchestrate', {'task': task, 'steps': steps, 'results': results})
+    return {"results": results}
+
+@app.get("/api/telemetry")
+async def api_telemetry():
+    return telemetry.get_metrics()
