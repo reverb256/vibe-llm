@@ -16,11 +16,17 @@ from .usage_tracker import UsageTracker
 from .orchestrator import Orchestrator
 from .telemetry import Telemetry
 from .sanitize import sanitize_input
+from .auth import get_current_client, get_admin_client, check_permission
+from fastapi import Depends
 import yaml
 
 load_dotenv()
 
 app = FastAPI(title="vibe-llm: Local AI Inference Server")
+
+# Default models for different use cases
+DEFAULT_CHAT_MODEL = "io:meta-llama/Meta-Llama-3.1-8B-Instruct-Turbo"
+DEFAULT_CONTENT_MODEL = "io:meta-llama/Meta-Llama-3.1-8B-Instruct-Turbo"
 
 # Initialize registry and discover IO models/agents at startup
 ioregistry = ModelRegistry()
@@ -256,3 +262,152 @@ async def api_orchestrate(request: Request):
 @app.get("/api/telemetry")
 async def api_telemetry():
     return telemetry.get_metrics()
+
+# Client-specific endpoints for business applications
+
+@app.post("/v1/admin/parse-command")
+async def parse_admin_command(request: Request, client: dict = Depends(get_admin_client)):
+    """Parse natural language admin commands for content management systems"""
+    body = await request.json()
+    command = body.get("command")
+    context = body.get("context", "business_website")
+    
+    if not command:
+        return JSONResponse({"error": "command must be specified"}, status_code=400)
+    
+    # Sanitize input
+    command = sanitize_input(command)
+    
+    # Use AI to parse the command
+    backend = get_backend(DEFAULT_CHAT_MODEL)
+    
+    prompt = f"""Parse this admin command for a {context}:
+
+Command: "{command}"
+
+Extract:
+1. target (what section/component to modify: hero, services, contact, about, etc.)
+2. action (what to do: update_text, update_contact, add_section, etc.)
+3. parameters (specific details like content, field, value)
+
+Return as JSON:
+{{"target": "...", "action": "...", "parameters": {{...}}}}"""
+
+    try:
+        response = backend.chat([{"role": "user", "content": prompt}], max_tokens=256, temperature=0.1)
+        # Parse the JSON response
+        import json
+        parsed = json.loads(response.strip())
+        
+        telemetry.log('admin_command_parse', {'command': command, 'context': context, 'parsed': parsed})
+        return {"parsed_command": parsed, "success": True}
+    except Exception as e:
+        return JSONResponse({"error": f"Failed to parse command: {str(e)}"}, status_code=500)
+
+@app.post("/v1/business/chat")
+async def business_chat(request: Request, client: dict = Depends(get_current_client)):
+    """Chat endpoint tailored for business websites with context awareness"""
+    body = await request.json()
+    message = body.get("message")
+    business_type = body.get("business_type", "service")
+    business_context = body.get("business_context", {})
+    session_id = body.get("session_id")
+    
+    if not message:
+        return JSONResponse({"error": "message must be specified"}, status_code=400)
+    
+    # Sanitize input
+    message = sanitize_input(message)
+    
+    # Build context-aware prompt
+    context_prompt = f"""You are a helpful assistant for a {business_type} business website. 
+
+Business Context:
+- Type: {business_type}
+- Services: {business_context.get('services', 'Professional services')}
+- Location: {business_context.get('location', 'Local area')}
+- Key Features: {business_context.get('features', 'Quality service')}
+
+User Message: {message}
+
+Respond helpfully and professionally, staying in character for this business."""
+
+    backend = get_backend(DEFAULT_CHAT_MODEL)
+    
+    try:
+        response = backend.chat([{"role": "user", "content": context_prompt}], max_tokens=512, temperature=0.7)
+        
+        telemetry.log('business_chat', {
+            'business_type': business_type, 
+            'session_id': session_id,
+            'message_length': len(message)
+        })
+        
+        return {
+            "response": response,
+            "session_id": session_id,
+            "business_type": business_type,
+            "success": True
+        }
+    except Exception as e:
+        return JSONResponse({"error": f"Chat failed: {str(e)}"}, status_code=500)
+
+@app.post("/v1/content/generate")
+async def generate_content(request: Request, client: dict = Depends(get_current_client)):
+    """Generate content for business websites"""
+    body = await request.json()
+    content_type = body.get("content_type")  # hero, service_description, testimonial, etc.
+    business_info = body.get("business_info", {})
+    requirements = body.get("requirements", "")
+    
+    if not content_type:
+        return JSONResponse({"error": "content_type must be specified"}, status_code=400)
+    
+    prompt = f"""Generate {content_type} content for a business website.
+
+Business Information:
+- Name: {business_info.get('name', 'Professional Services')}
+- Industry: {business_info.get('industry', 'Service Industry')}
+- Location: {business_info.get('location', 'Local')}
+- Key Services: {business_info.get('services', 'Professional services')}
+
+Requirements: {requirements}
+
+Generate professional, engaging content that converts visitors into customers."""
+
+    backend = get_backend(DEFAULT_CONTENT_MODEL)
+    
+    try:
+        content = backend.chat([{"role": "user", "content": prompt}], max_tokens=1024, temperature=0.8)
+        
+        telemetry.log('content_generation', {
+            'content_type': content_type,
+            'business_name': business_info.get('name', 'unknown')
+        })
+        
+        return {
+            "content": content,
+            "content_type": content_type,
+            "success": True
+        }
+    except Exception as e:
+        return JSONResponse({"error": f"Content generation failed: {str(e)}"}, status_code=500)
+
+@app.post("/v1/consciousness/metrics")
+async def consciousness_metrics(request: Request):
+    """Track consciousness metrics for the federation"""
+    body = await request.json()
+    agent_id = body.get("agent_id")
+    metrics = body.get("metrics", {})
+    
+    if not agent_id:
+        return JSONResponse({"error": "agent_id must be specified"}, status_code=400)
+    
+    # Store metrics in telemetry
+    telemetry.log('consciousness_metrics', {
+        'agent_id': agent_id,
+        'metrics': metrics,
+        'timestamp': telemetry.current_time()
+    })
+    
+    return {"success": True, "agent_id": agent_id}
